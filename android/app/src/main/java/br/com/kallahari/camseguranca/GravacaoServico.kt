@@ -44,6 +44,10 @@ class GravacaoServico : Service(), LifecycleOwner {
         private const val CANAL_ID = "camseguranca_gravando"
         private const val NOTIFICACAO_ID = 1001
         private const val DURACAO_SEGMENTO_MS = 6000L
+        // Rede de segurança apenas — o envio de verdade acontece assim que cada
+        // segmento termina de gravar (ver iniciarProximoSegmento). Esse timer só
+        // reconfere a fila periodicamente pra reprocessar retentativas que
+        // falharam por falta de conexão no momento em que o segmento ficou pronto.
         private const val INTERVALO_SYNC_MS = 10000L
         var rodando = false
             private set
@@ -53,6 +57,11 @@ class GravacaoServico : Service(), LifecycleOwner {
     override val lifecycle: Lifecycle get() = lifecycleRegistry
 
     private val executor = Executors.newSingleThreadExecutor()
+    // Único executor de envio pro serviço inteiro — antes uma thread pool nova
+    // era criada a cada tick do timer (a cada 10s, pra sempre) e nunca era
+    // desligada, um vazamento de threads que ia piorando ao longo de horas de
+    // uso contínuo.
+    private val envioExecutor = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
 
     private var cameraProvider: ProcessCameraProvider? = null
@@ -63,7 +72,7 @@ class GravacaoServico : Service(), LifecycleOwner {
 
     private val syncRunnable = object : Runnable {
         override fun run() {
-            Executors.newSingleThreadExecutor().execute { FilaEnvio.tentarEnviarTudo(applicationContext) }
+            envioExecutor.execute { FilaEnvio.tentarEnviarTudo(applicationContext) }
             handler.postDelayed(this, INTERVALO_SYNC_MS)
         }
     }
@@ -147,6 +156,9 @@ class GravacaoServico : Service(), LifecycleOwner {
                     if (arquivo.exists()) arquivo.delete()
                 } else {
                     FilaEnvio.enfileirar(applicationContext, arquivo)
+                    // Envia na hora, não espera o timer de 10s — é isso que mantém
+                    // o "ao vivo" alimentado no mesmo ritmo de 6s da gravação.
+                    envioExecutor.execute { FilaEnvio.tentarEnviarTudo(applicationContext) }
                 }
                 if (!parando) iniciarProximoSegmento()
             }
@@ -198,6 +210,7 @@ class GravacaoServico : Service(), LifecycleOwner {
         gravacaoAtual?.stop()
         cameraProvider?.unbindAll()
         wakeLock?.let { if (it.isHeld) it.release() }
+        envioExecutor.shutdown()
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
         super.onDestroy()
     }
