@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>CamSegurança</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="tela" id="tela-pareamento">
+  <div class="logo">Cam<span>Segurança</span></div>
+  <div class="sub">Configuração inicial</div>
+  <p class="texto">Digite o código de pareamento gerado no painel administrativo (aba "Gerenciar Câmeras").</p>
+  <input type="text" id="input-codigo" maxlength="6" placeholder="A3F9K2" autocapitalize="characters" autocomplete="off">
+  <button id="btn-parear" class="btn-primario">Parear câmera</button>
+  <div class="erro oculto" id="erro-pareamento"></div>
+</div>
+
+<div class="tela oculto" id="tela-ativa">
+  <div class="status-topo">
+    <div class="dot-gravando"></div>
+    <div>
+      <div class="cam-nome" id="cam-nome">—</div>
+      <div class="cam-sub">Câmera de segurança ativa — gravando vídeo e áudio</div>
+    </div>
+  </div>
+
+  <div class="card-info">
+    <div class="linha"><span>Status</span><span id="status-servico">Iniciando...</span></div>
+    <div class="linha"><span>Fila de envio</span><span id="status-fila">0 pendente(s)</span></div>
+    <div class="linha"><span>Última sincronização</span><span id="status-sync">—</span></div>
+  </div>
+
+  <p class="texto aviso">📷🎙 A notificação fixa do Android confirma que a câmera e o microfone estão em uso. Não feche essa notificação — ela é obrigatória para a gravação continuar funcionando em segundo plano.</p>
+
+  <button id="btn-trocar" class="btn-secundario">Repareamento (trocar câmera)</button>
+</div>
+
+<script src="capacitor.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
