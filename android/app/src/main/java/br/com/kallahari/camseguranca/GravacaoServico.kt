@@ -19,6 +19,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.camera.core.CameraSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.video.FallbackStrategy
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Quality
 import androidx.camera.video.QualitySelector
@@ -122,8 +123,17 @@ class GravacaoServico : Service(), LifecycleOwner {
         val future = ProcessCameraProvider.getInstance(this)
         future.addListener({
             cameraProvider = future.get()
+            // "SD" ainda escolhe uma resolução relativamente alta em muitos
+            // aparelhos (medimos até 2,7MB por segmento de 6s = ~3,6 Mbps),
+            // o que facilmente ultrapassa o upload disponível e faz o ao vivo
+            // ficar sempre atrasado tentando alcançar. Fixamos o bitrate
+            // explicitamente num valor bem mais amigável pra rede (câmera de
+            // segurança não precisa de nitidez de cinema).
             val recorder = Recorder.Builder()
-                .setQualitySelector(QualitySelector.from(Quality.SD))
+                .setQualitySelector(
+                    QualitySelector.from(Quality.SD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD))
+                )
+                .setTargetVideoEncodingBitRate(600_000) // ~600kbps -> ~450KB por segmento de 6s
                 .build()
             videoCapture = VideoCapture.withOutput(recorder)
 
